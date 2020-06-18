@@ -1,5 +1,6 @@
 libcpp <- reticulate::import("py_libcpp_test",convert = T)
 py_gc <- reticulate::import("gc")
+library(varhandle)
 
 Int <- R6Class(classname = "Int",cloneable = FALSE,
                private = list(
@@ -198,9 +199,28 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                           stopifnot(class(int)=="integer" && length(int)==1)
                           
                           ans <- private$py_obj$process15(int)
-                          k <- LibCppTest$new()
-                          k$get_py_object() <- ans[[1]]
-                          ans[[1]] <- k
+                          ans[[1]] <- LibCppTest$new()$set_py_object(ans[[1]])
+                          return(ans)
+                        },
+                        
+                        # process 16
+                        process16 = function(dict){
+                          stopifnot(class(dict)=="list" && !is.null(names(dict)) && all(check.numeric(names(dict),only.integer = T)))
+                          
+                          if(length(dict)==1){
+                            py$key <- list(as.integer(names(dict)))
+                            py$val <- list(unlist(dict,use.names = F))
+                          } else{
+                            py$key <- as.integer(names(dict))
+                            py$val <- unlist(dict,use.names = F)
+                          }
+                          
+                          ans <- py_to_r(py_call(private$py_obj$process16,py_eval("dict(zip(key,val))",convert = F))) 
+                          
+                          py_run_string("del key;del val")
+                          
+                          py_gc$collect()
+                          
                           return(ans)
                         },
                         
@@ -223,14 +243,17 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                           return(ans)
                         },
                         
-                        
-                        
                         get = function(){
                           return(private$py_obj$gett())
                         },
                         
                         get_py_object = function(){
                           return(private$py_obj)
+                        },
+                        
+                        set_py_object = function(x){
+                          private$py_obj <- x
+                          invisible(self)
                         }
                     )
                     
