@@ -1,6 +1,10 @@
+library(reticulate)
+library(varhandle)
+library(R6)
+
 libcpp <- reticulate::import("py_libcpp_test",convert = T)
 py_gc <- reticulate::import("gc")
-library(varhandle)
+
 
 Int <- R6Class(classname = "Int",cloneable = FALSE,
                private = list(
@@ -205,7 +209,7 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                         
                         # process 16
                         process16 = function(dict){
-                          stopifnot(class(dict)=="list" && !is.null(names(dict)) && all(check.numeric(names(dict),only.integer = T)))
+                          stopifnot(class(dict)=="list" && !is.null(names(dict)) && all(check.numeric(names(dict),only.integer = T)) && all(sapply(dict, function(d) typeof(d)=="double")))
                           
                           if(length(dict)==1){
                             py$key <- list(as.integer(names(dict)))
@@ -222,6 +226,96 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                           py_gc$collect()
                           
                           return(ans)
+                        },
+                        
+                        # process 17
+                        process17 = function(dict){
+                          
+                          # R allows for different elements with same name.
+                          if(!length(unique(names(dict))) == length(names(dict))) {
+                            stop("List contains multiple elements with the same name")
+                          }
+                          
+                          stopifnot(class(dict)=="list" && !is.null(names(dict)) && all(sapply(names(dict),function(d) as.integer(d) %in% c(1L,0L))) && all(sapply(dict,function(d) typeof(d)=="double")))
+                          
+                          if(length(dict)==1){
+                            py$key <- list(as.integer(names(dict)))
+                            py$val <- list(unlist(dict,use.names = F))
+                          } else{
+                            py$key <- as.integer(names(dict))
+                            py$val <- unlist(dict,use.names = F)
+                          }
+                          
+                          ans <- py_to_r(py_call(private$py_obj$process17,py_eval("dict(zip(key,val))",convert = F)))
+                          
+                          py_run_string("del key;del val")
+                          
+                          py_gc$collect()
+                          
+                          return(ans)
+                          
+                        },
+                        
+                        # process 18
+                        process18 = function(dict){
+                          
+                          stopifnot(class(dict)=="list" && !is.null(names(dict)) && all(check.numeric(names(dict),only.integer = T)) && all(sapply(dict, function(d) all(class(d)==c("LibCppTest","R6")))))
+                          
+                          for (i in sequence(length(dict))) {
+                            dict[[i]] <- dict[[i]]$get_py_object()
+                          }
+                          
+                          if(length(dict)==1){
+                            py$key <- list(as.integer(names(dict)))
+                            py$val <- list(unlist(dict,use.names = F))
+                          } else{
+                            py$key <- as.integer(names(dict))
+                            py$val <- unlist(dict,use.names = F)
+                          }
+                          
+                          ans <- py_to_r(py_call(private$py_obj$process18,py_eval("dict(zip(key,val))",convert = F)))
+                          
+                          py_run_string("del key;del val")
+                          
+                          py_gc$collect()
+                          
+                          return(ans)
+                          
+                        },
+                        
+                        # process19
+                        process19 = function(dict){
+                          stopifnot(class(dict)=="list" && !is.null(names(dict)) && all(check.numeric(names(dict),only.integer = T)) && all(sapply(dict, function(d) class(d)==c("LibCppTest","R6"))))
+                          
+                          dict1 <- dict
+                          
+                          for (i in sequence(length(dict))) {
+                            dict1[[i]] <- dict1[[i]]$get_py_object()
+                          }
+                          
+                          if(length(dict1)==1){
+                            py$key <- list(as.integer(names(dict1)))
+                            py$val <- list(unlist(dict1,use.names = F))
+                          } else{
+                            py$key <- as.integer(names(dict1))
+                            py$val <- unlist(dict1,use.names = F)
+                          }
+                          
+                          py_run_string("d = dict(zip(key,val))")
+                          
+                          py_call(private$py_obj$process19,py_eval("d",convert = F))
+                          
+                          ans <- py_eval("d")
+                          
+                          for (a in sequence(length(ans))) {
+                            ans[[a]] <- LibCppTest$new()$set_py_object(ans[[a]])
+                          }
+                          
+                          py_run_string("del key;del val;del d")
+                          
+                          py_gc$collect()
+                          
+                          eval.parent(substitute(dict<-ans))
                         },
                         
                         
