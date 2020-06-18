@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 libcpp <- reticulate::import("py_libcpp_test",convert = T)
 py_gc <- reticulate::import("gc")
 
@@ -211,11 +210,6 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                     
 )
 
-||||||| merged common ancestors
-=======
-libcpp <- reticulate::import("py_libcpp_test",convert = T)
-py_gc <- reticulate::import("gc")
-
 Int <- R6Class(classname = "Int",cloneable = FALSE,
                private = list(
                   .py_obj = NA
@@ -405,5 +399,3 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                     )
                     
 )
-
->>>>>>> 1896b4eb8c7908438a5f28ffe6b4231af190b40c
