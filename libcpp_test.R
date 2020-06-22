@@ -1,12 +1,10 @@
 library(reticulate)
 library(varhandle)
-library(tidyverse)
 library(purrr)
 library(R6)
 
-libcpp <- reticulate::import("py_libcpp_test",convert = T)
-py_gc <- reticulate::import("gc")
-
+libcpp <- import("py_libcpp_test")
+py_gc <- import("gc")
 
 ABS_Impl1 <- R6Class(classname = "ABS_Impl1",cloneable = FALSE,
                      private = list(
@@ -89,171 +87,294 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                       ),
                       
                       public = list(
+                        
                         initialize = function(ii){
                           if(missing(ii)){
                             private$py_obj <- libcpp$LibCppTest()
-                          } else {
-                            if(!is_scalar_integer(ii)){
-                              stop("wrong argument!!")
-                            }
+                          } else if(!is_scalar_integer(ii)){
+                            stop("wrong argument!!")
+                          } else{
                             private$py_obj <- libcpp$LibCppTest(ii)
                           }
                         },
                         
-                        # libcpp_pair[int,libcpp_string] twist(libcpp_pair[libcpp_string, int]) 
                         
+                        #' libcpp_pair[int,libcpp_string] twist(libcpp_pair[libcpp_string, int])
+                        #' 
+                        #' takes a list of character and integer as input.
                         twist = function(pair){
-                          stopifnot(length(pair)==2 && class(pair[[1]])=="character" && class(pair[[2]])=="integer")
-                          return(private$py_obj$twist(pair))
+                          stopifnot(length(pair)==2 && is_scalar_character(pair[[1]]) && is_scalar_integer(pair[[2]]))
+                          py$str <- pair[[1]]
+                          py_run_string("str = bytes(str,'utf-8')")
+                          ans <- private$py_obj$twist(list(py$str,pair[[2]]))
+                          ans[[2]] <- as.character(ans[[2]])
+                          py_run_string("del str")
+                          py_gc$collect()
+                          ans
                         },
                         
-                        # libcpp_vector[int] process(libcpp_vector[int] &)
                         
+                        #' libcpp_vector[int] process(libcpp_vector[int] &)
+                        #' 
+                        #' takes an integer vector of length 2 as input.
                         process = function(vec){
+                          
                           stopifnot(is_integer(vec))
-                          return(private$py_obj$process(vec))
+                          
+                          vec1 <- r_to_py(vec)
+                          
+                          ans <- private$py_obj$process(vec1)
+                          
+                          vec1 <- py_to_r(vec1)
+                          
+                          tryCatch({
+                            eval.parent(substitute(vec<-vec1))
+                            return(ans)
+                          },error = function(c) return(ans)
+                          )
+                          
                         },
                         
-                        # libcpp_pair[int, int] process2(libcpp_pair[int, int] &)
-
+                        #' libcpp_pair[int, int] process2(libcpp_pair[int, int] &)
+                        #' 
+                        #' takes an integer vector of length 2 as input.
                         process2 = function(pair){
                           stopifnot(is_integer(pair) && length(pair)==2)
-                          return(private$py_obj$process2(vec))
+                          pair1 <- r_to_py(pair)
+                          ans <- private$py_obj$process2(pair1)
+                          pair1 <- py_to_r(pair1)
+                          tryCatch({
+                            eval.parent(substitute(pair<-pair1))
+                            return(ans)
+                          },error = function(c) return(ans)
+                          )
                         },
                         
-                        # libcpp_pair[LibCppTest, int] process3(libcpp_pair[LibCppTest, int] &)
-
-                        process3 = function(vec){
-                          stopifnot(length(vec)==2 && class(vec[[2]])=="integer" && class(vec[[1]])=="LibCppTest")
-                          vec[[1]] <- vec[[1]]$get_py_object()
-                          vec2 <- private$py_obj$process3(vec)
-                          vec2[[1]] <- LibCppTest$new(vec2[[1]]$gett())
-                          return(vec2)
+                        #' libcpp_pair[LibCppTest, int] process3(libcpp_pair[LibCppTest, int] &)
+                        #' 
+                        #' takes a list of LibCppTest object and integer.
+                        process3 = function(pair){
+                          stopifnot(length(pair)==2 && all(class(pair[[1]])==c("LibCppTest","R6")) && is_scalar_integer(pair[[2]]))
+                          
+                          pair1 <- pair
+                          pair1[[1]] <- pair1[[1]]$get_py_object()
+                          pair1 <- r_to_py(pair1)
+                          
+                          ans <- private$py_obj$process3(pair1)
+                          ans[[1]] <- LibCppTest$new(ans[[1]]$gett())
+                          
+                          pair1 <- py_to_r(pair1)
+                          pair1[[1]] <- LibCppTest$new(pair1[[1]])
+                          
+                          
+                          tryCatch({
+                            eval.parent(substitute(pair<-pair1))
+                            return(ans)  
+                          }, error = function(c) return(ans)
+                          )
+                          
                         },
                         
-                        # libcpp_pair[int, LibCppTest] process4(libcpp_pair[int, LibCppTest] &)
-                        
+                        #' libcpp_pair[int, LibCppTest] process4(libcpp_pair[int, LibCppTest] &)
+                        #' 
+                        #' takes list of integer and LibCppTest object
                         process4 = function(pair){
-                          pair[[2]] <- pair[[2]]$get_py_object()
+                          stopifnot(length(pair)==2 && is_scalar_integer(pair[[1]]) && all(class(pair[[2]])==c("LibCppTest","R6")))
                           
-                          pair2 <- private$py_obj$process4(pair)
+                          pair1 <- pair
+                          pair1[[2]] <- pair1[[2]]$get_py_object()
+                          pair1 <- r_to_py(pair1)
                           
-                          pair2[[2]] <- LibCppTest$new(pair2[[2]]$gett())
-                          return(pair2)
+                          ans <- private$py_obj$process4(pair1)
+                          ans[[2]] <- LibCppTest$new(ans[[2]]$gett())
+                          
+                          pair1 <- py_to_r(pair1)
+                          pair1[[2]] <- LibCppTest$new(pair1[[2]]$gett())
+                          
+                          tryCatch({
+                            eval.parent(substitute(pair<-pair1))
+                            return(ans)
+                          }, error = function(c) return(ans))
+                          
                         },
                         
-                        # libcpp_pair[LibCppTest, LibCppTest] process5(libcpp_pair[LibCppTest, LibCppTest] &)
                         
+                        
+                        #' libcpp_pair[LibCppTest, LibCppTest] process5(libcpp_pair[LibCppTest, LibCppTest] &)
+                        #' 
+                        #' takes a list of LibCppTest objects.
                         process5 = function(pair){
-                          pair[[1]] <- pair[[1]]$get_py_object()
-                          pair[[2]] <- pair[[2]]$get_py_object()
+                          stopifnot(length(pair)==2 && all(sapply(pair, function(f) all(class(f)==c("LibCppTest","R6")))))
+                          pair1 <- pair
                           
-                          pair2 <- private$py_obj$process5(pair)
+                          pair1[[1]] <- pair1[[1]]$get_py_object()
+                          pair1[[2]] <- pair1[[2]]$get_py_object()
                           
-                          pair2[[1]] <- LibCppTest$new(pair2[[1]]$gett())
-                          pair2[[2]] <- LibCppTest$new(pair2[[2]]$gett())
-                          return(pair2)
+                          pair1 <- r_to_py(pair1)
+                          ans <- private$py_obj$process5(pair1)
+                          ans[[1]] <- LibCppTest$new(ans[[1]]$gett())
+                          ans[[2]] <- LibCppTest$new(ans[[2]]$gett())
+                          
+                          pair1 <- py_to_r(pair1)
+                          pair1[[1]] <- LibCppTest$new(pair1[[1]]$gett())
+                          pair1[[2]] <- LibCppTest$new(pair1[[2]]$gett())
+                          
+                          tryCatch({
+                            eval.parent(substitute(pair<-pair1))
+                            return(ans)
+                          }, error = function(c) return(ans))
+                          
                         },
                         
-                        # libcpp_vector[libcpp_pair[int,double]] process6(libcpp_vector[libcpp_pair[int,double]] &)
+                        #' libcpp_vector[libcpp_pair[int,double]] process6(libcpp_vector[libcpp_pair[int,double]] &)
+                        #' 
+                        #' takes a list of list of integer and double type.
+                        process6 = function(pair){
+                          stopifnot(is_list(pair) && all(sapply(pair, function(x) is_scalar_integer(x[[1]]) && is_scalar_double(x[[2]]))))
+                          
+                          pair1 <- r_to_py(pair)
+                          ans <- private$py_obj$process6(pair1)
+                          pair1 <- py_to_r(pair1)
+                          
+                          tryCatch({
+                            eval.parent(substitute(pair<-pair1))
+                            return(ans)
+                          }, error = function(c) return(ans))
                         
-                        process6 = function(vec_pair){
-                          stopifnot(class(vec_pair)=="list")
-                          return(private$py_obj$process6(vec_pair))
                         },
                         
-                        # libcpp_pair[int, EEE] process7(libcpp_pair[EEE, int] &)
-
+                        #' libcpp_pair[int, EEE] process7(libcpp_pair[EEE, int] &)
+                        #' 
+                        #' takes a vector of enum integer(0/1) and integer type.
                         process7 = function(pair){
-                          stopifnot(length(pair)==2 && pair[1] %in% as.integer(c(0,1)) && class(pair[2])=="integer")
+                          stopifnot(length(pair)==2 && pair[1] %in% c(0,1) && class(pair[2])=="integer")
                           
-                          return(private$py_obj$process7(pair))
+                          pair1 <- r_to_py(pair)
+                          ans <- private$py_obj$process7(pair)
+                          pair1 <- py_to_r(pair1)
+                          
+                          tryCatch({
+                            eval.parent(substitute(pair<-pair1))
+                            return(ans)
+                          }, error = function(c) return(ans))
+                          
                         },
                         
-                        # libcpp_vector[EEE] process8(libcpp_vector[EEE] &)
-
-                        process8 = function(vec_pair){
-                          stopifnot(class(vec_pair)=="integer")
-                          for (v in vec_pair) {
-                            stopifnot(v %in% as.integer(c(0,1)))
-                          }
+                        #' libcpp_vector[EEE] process8(libcpp_vector[EEE] &)
+                        #' 
+                        #' takes a vector of enum integer(0/1).
+                        process8 = function(vec){
+                          stopifnot(is_integer(vec) && all(sapply(vec,function(x) x %in% c(1,0))))
                           
-                          return(private$py_obj$process8(vec_pair))
+                          vec1 <- r_to_py(vec)
+                          ans <- private$py_obj$process8(vec)
+                          vec1 <- py_to_r(vec1)
+                          
+                          tryCatch({
+                            eval.parent(substitute(vec<-vec1))
+                            return(ans)
+                          }, error = function(c) return(ans))
+                          
                         },
                         
-                        # libcpp_set[int] process9(libcpp_set[int] &)
-                        
-                        process9 = function(set_int){
+                        #' libcpp_set[int] process9(libcpp_set[int] &)
+                        #'
+                        #' takes an integer vector of unique values. 
+                        process9 = function(seti){
                           
-                          stopifnot(class(set_int)=="list")
+                          stopifnot( is_integer(seti) && !(TRUE %in% duplicated(seti)) )
                           
-                          # create python list corresponding to R list.
-                          py$o1 <- set_int
+                          # create python list corresponding to R vector.
+                          py$o1 <- seti
                           
                           # convert the python list to set.
                           py_run_string("o1 = set(o1)")
                           
                           # call the python function `process9` passing the set as argument.
                           # function returns a set also.
-                          py$o1 <- py_call(private$py_obj$process9,py$o1)
+                          py$o2 <- py_call(private$py_obj$process9,py$o1)
                           
-                          ans <- py_eval("list(o1)")
+                          ans <- py_eval("list(o2)")
                           
-                          # Deleting the python object.
-                          py_run_string("del o1")
-                          py_gc$collect()
+                          tryCatch({
+                            eval.parent(substitute(seti<-py_eval("list(o1)")))
+                            py_run_string("del o1;del o2")
+                            py_gc$collect()
+                            return(ans)
+                          }, error = function(c){
+                            py_run_string("del o1;del o2")
+                            py_gc$collect()
+                            return(ans)
+                          } )
                           
-                          return(ans)
                         },
                         
-                        # libcpp_set[LibCppTest] process11(libcpp_set[LibCppTest] &)
-
-                        process11 = function(input){
+                        #' libcpp_set[LibCppTest] process11(libcpp_set[LibCppTest] &)
+                        #' 
+                        #' takes a list of unique LibCppTest objects(we check through underlying python objects).
+                        #' a <- LibCppTest$new(10L) 
+                        #' b <- LibCppTest$new(10L)
+                        #' Here, a & b cannot both be in the list since they are equal.
+                        process11 = function(setl){
+                          # check if all are LibCppTest object.
+                          stopifnot(is_list(setl) && all(sapply(setl, function(x) all(class(x)==c("LibCppTest","R6")))))
                           
-                          stopifnot(class(input)=="list")
-                          for (i in sequence(length(input))){
-                            stopifnot(is.R6(input[[i]]) && class(input[[i]])[1] == "LibCppTest")
-                            input[[i]] <- input[[i]]$get_py_object()
+                          # check if all unique
+                          if( TRUE %in% duplicated(sapply(setl, function(x) x$get())) ){
+                            stop("argument values should be unique")
                           }
                           
-                          py$o1 <- input
+                          # converting r to python object.
+                          setl <- lapply(setl, function(x) x$get_py_object())
+                          
+                          py$o1 <- setl
                           
                           py_run_string("o1 = set(o1)")
                           
-                          py$o1 <- py_call(private$py_obj$process11,py$o1)
+                          py$o2 <- py_call(private$py_obj$process11,py$o1)
                           
-                          ans <- py_eval("list(o1)")
+                          ans <- py_eval("list(o2)")
                           
-                          py_run_string("del o1")
-                          py_gc$collect()
+                          tryCatch({
+                            eval.parent(substitute(setl<-py_eval("list(o1)")))
+                            py_run_string("del o1;del o2")
+                            py_gc$collect()
+                            return(lapply(ans,function(x) LibCppTest$new(x$gett())))
+                          }, error = function(c){
+                            py_run_string("del o1;del o2")
+                            py_gc$collect()
+                            return(lapply(ans,function(x) LibCppTest$new(x$gett())))
+                          } )
                           
-                          ans <- lapply(ans,function(x) LibCppTest$new(x$gett()))
-                          
-                          return(ans)
                         },
                         
-                        # libcpp_map[int, float] process12(int i, float f)
-
+                        #' libcpp_map[int, float] process12(int i, float f)
+                        #' 
+                        #' takes two scalar vectors of type integer and double.
                         process12 = function(a,b){
-                          stopifnot(typeof(a)=="integer" && typeof(b)=="double" && length(a)==1 && length(b)==1)
+                          stopifnot(is_scalar_integer(a) && is_scalar_double(b))
                           return(private$py_obj$process12(a,b))
                         },
                         
-                        # libcpp_map[EEE, int] process13(EEE e, int i)
-                        
+                        #' libcpp_map[EEE, int] process13(EEE e, int i)
+                        #' 
+                        #' takes two scalar vectors of enum integer(0/1) and integer type.
                         process13 = function(enum,int){
-                          stopifnot(class(enum)=="integer" && class(int)=="integer" && enum %in% c(1,0) && length(int)==1)
+                          stopifnot(is_scalar_integer(enum) && enum %in% c(1,0) && is_scalar_integer(int))
                           return(private$py_obj$process13(enum,int))
                         },
                         
-                        # libcpp_map[int, EEE] process14(EEE e, int i)
-                        
+                        #' libcpp_map[int, EEE] process14(EEE e, int i)
+                        #'
+                        #' takes two scalar vectors of enum integer(0/1) and integer type.
                         process14 = function(enum,int){
                           stopifnot(class(enum)=="integer" && class(int)=="integer" && enum %in% c(1,0) && length(int)==1)
-                          return(private$py_obj$process13(enum,int))
+                          return(private$py_obj$process14(enum,int))
                         },
                         
-                        # libcpp_map[long int, LibCppTest] process15(int ii)
+                        #' libcpp_map[long int, LibCppTest] process15(int ii)
+                        #' 
+                        #' takes a scalar integer vector.
                         process15 = function(ii){
                           stopifnot(is_scalar_integer(ii))
                           
@@ -262,17 +383,25 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                           return(ans)
                         },
                         
-                        # float process16(libcpp_map[int, float] in_)
-
+                        #' float process16(libcpp_map[int, float] in_)
+                        #' 
+                        #' takes a named list of double type with names as integer type.
                         process16 = function(dict){
-                          stopifnot(class(dict)=="list" && !is.null(names(dict)) && all(check.numeric(names(dict),only.integer = T)) && all(sapply(dict, function(d) typeof(d)=="double")))
+                          # check if list is named, names of integer type, values of double type.
+                          stopifnot(is_list(dict) && !is.null(names(dict)) && all(check.numeric(names(dict),only.integer = T)) && all(sapply(dict, function(d) is_double(d))))
+                          
+                          # check that list names should be unique.
+                          # R allows for different elements with same name.
+                          if(!length(unique(names(dict))) == length(names(dict))) {
+                            stop("List names should be unique")
+                          }
                           
                           if(length(dict)==1){
                             py$key <- list(as.integer(names(dict)))
-                            py$val <- list(unlist(dict,use.names = F))
+                            py$val <- unname(dict)
                           } else{
                             py$key <- as.integer(names(dict))
-                            py$val <- unlist(dict,use.names = F)
+                            py$val <- unname(dict)
                           }
                           
                           ans <- py_to_r(py_call(private$py_obj$process16,py_eval("dict(zip(key,val))",convert = F))) 
@@ -284,23 +413,26 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                           return(ans)
                         },
                         
-                        # float process17(libcpp_map[EEE, float] in_)
-                        
+                        #' float process17(libcpp_map[EEE, float] in_)
+                        #' 
+                        #' takes a named list of double type and names as enum integer(0/1).
                         process17 = function(dict){
                           
-                          # R allows for different elements with same name.
+                          stopifnot(class(dict)=="list" && !is.null(names(dict)) && all(sapply(names(dict),function(d) d %in% c(1,0))) && all(sapply(dict,function(d) is_double(d))))
+                          
+                          
+                          # check that list name should be unique.
                           if(!length(unique(names(dict))) == length(names(dict))) {
-                            stop("List contains multiple elements with the same name")
+                            stop("List names should be unique")
                           }
                           
-                          stopifnot(class(dict)=="list" && !is.null(names(dict)) && all(sapply(names(dict),function(d) as.integer(d) %in% c(1L,0L))) && all(sapply(dict,function(d) typeof(d)=="double")))
                           
                           if(length(dict)==1){
                             py$key <- list(as.integer(names(dict)))
-                            py$val <- list(unlist(dict,use.names = F))
+                            py$val <- unname(dict)
                           } else{
                             py$key <- as.integer(names(dict))
-                            py$val <- unlist(dict,use.names = F)
+                            py$val <- unname(dict)
                           }
                           
                           ans <- py_to_r(py_call(private$py_obj$process17,py_eval("dict(zip(key,val))",convert = F)))
@@ -313,20 +445,26 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                           
                         },
                         
-                        # int process18(libcpp_map[int, LibCppTest] in_)
-
+                        #' int process18(libcpp_map[int, LibCppTest] in_)
+                        #' 
+                        #' takes a named list of LibCppTest object and names as integer type.
                         process18 = function(dict){
                           
-                          stopifnot(class(dict)=="list" && !is.null(names(dict)) && all(check.numeric(names(dict),only.integer = T)) && all(sapply(dict, function(d) all(class(d)==c("LibCppTest","R6")))))
+                          stopifnot(is_list(dict) && !is.null(names(dict)) && all(check.numeric(names(dict),only.integer = T)) && all(sapply(dict, function(d) all(class(d)==c("LibCppTest","R6")))))
                           
-                          dict <- lapply(dict, function(x) dict$get_py_object(x))
+                          # check that list name should be unique.
+                          if(!length(unique(names(dict))) == length(names(dict))) {
+                            stop("List names should be unique")
+                          }
+                          
+                          dict <- lapply(dict, function(x) x$get_py_object())
                           
                           if(length(dict)==1){
                             py$key <- list(as.integer(names(dict)))
-                            py$val <- list(unlist(dict,use.names = F))
+                            py$val <- unname(dict)
                           } else{
                             py$key <- as.integer(names(dict))
-                            py$val <- unlist(dict,use.names = F)
+                            py$val <- unname(dict)
                           }
                           
                           ans <- py_to_r(py_call(private$py_obj$process18,py_eval("dict(zip(key,val))",convert = F)))
@@ -339,9 +477,17 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                           
                         },
                         
-                        # void  process19(libcpp_map[int, LibCppTest] & in_)
+                        #' void  process19(libcpp_map[int, LibCppTest] & in_)
+                        #' 
+                        #' takes a named list of LibCppTest object and names as integer type.
                         process19 = function(dict){
+                          
                           stopifnot(class(dict)=="list" && !is.null(names(dict)) && all(check.numeric(names(dict),only.integer = T)) && all(sapply(dict, function(d) class(d)==c("LibCppTest","R6"))))
+                          
+                          # check that list name should be unique.
+                          if(!length(unique(names(dict))) == length(names(dict))) {
+                            stop("List names should be unique")
+                          }
                           
                           dict1 <- dict
                           
@@ -351,10 +497,10 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                           
                           if(length(dict1)==1){
                             py$key <- list(as.integer(names(dict1)))
-                            py$val <- list(unlist(dict1,use.names = F))
+                            py$val <- unname(dict1)
                           } else{
                             py$key <- as.integer(names(dict1))
-                            py$val <- unlist(dict1,use.names = F)
+                            py$val <- unname(dict1)
                           }
                           
                           py_run_string("d = dict(zip(key,val))")
@@ -368,51 +514,57 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                           }
                           
                           py_run_string("del key;del val;del d")
-                          
                           py_gc$collect()
                           
-                          eval.parent(substitute(dict<-ans))
+                          tryCatch({
+                            eval.parent(substitute(dict<-ans))
+                            invisible(NULL)
+                          }, error = function(c){invisible(NULL)} )
+                          
                         },
                         
                         
-                        # void  process20(libcpp_map[int, float] & in_)
-                        
+                        #' void  process20(libcpp_map[int, float] & in_)
+                        #' 
+                        #' takes a named list of double type and names as integer type.
                         process20 = function(dict){
                           
+                          # check that list is named, all name values can be converted to integer type and the list elements are of double type.
+                          stopifnot(is_list(dict) && !is.null(names(dict)) && all(check.numeric(names(dict),only.integer = T)) && all(sapply(dict, function(d) is_double(d))))
+                          
+                          # check that list name should be unique.
                           if(!length(unique(names(dict))) == length(names(dict))) {
-                            stop("List contains multiple elements with the same name")
+                            stop("List names should be unique")
                           }
                           
-                          stopifnot(class(dict)=="list" && !is.null(names(dict)) && all(check.numeric(names(dict),only.integer = T)) && all(sapply(dict, function(d) typeof(d)=="double")))
-                          
-                          dict1 <- dict
-                          
-                          if(length(dict1)==1){
-                            py$key <- list(as.integer(names(dict1)))
-                            py$val <- list(unlist(dict1,use.names = F))
+                          if(length(dict)==1){
+                            py$key <- list(as.integer(names(dict)))
+                            py$val <- unname(dict)
                           } else{
-                            py$key <- as.integer(names(dict1))
-                            py$val <- unlist(dict1,use.names = F)
+                            py$key <- as.integer(names(dict))
+                            py$val <- unname(dict)
                           }
                           
                           py_run_string("d = dict(zip(key,val))")
                           
                           py_call(private$py_obj$process20,py_eval("d",convert = F))
                         
-                          
-                          eval.parent(substitute(dict<-py_eval("d")))
-                          
+                          ans<-py_eval("d")
                           py_run_string("del key;del val;del d")
-                          
                           py_gc$collect()
-                          
-                          invisible()
+              
+                          tryCatch({
+                            eval.parent(substitute(dict<-ans))
+                            invisible(NULL)
+                          }, error = function(c){invisible(NULL)} )
                           
                         },
                         
                         
-                        # void  process21(libcpp_map[int, float] & in_, libcpp_map[int,int] & arg2)
-                        
+                        #' void  process21(libcpp_map[int, float] & in_, libcpp_map[int,int] & arg2)
+                        #' 
+                        #' in_ : named list of double type and names as integer type.
+                        #' arg2 : named list of integer type and names as integer type.
                         process21 = function(in_,arg2){
                           
                           if(!length(unique(names(in_))) == length(names(in_))) {
@@ -423,9 +575,9 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                             stop("List arg2 contains multiple elements with the same name")
                           }
                           
-                          stopifnot(class(in_)=="list" && !is.null(names(in_)) && all(check.numeric(names(in_),only.integer = T)) && all(sapply(in_,function(d) typeof(d)=="double")))
+                          stopifnot(is_list(in_) && !is.null(names(in_)) && all(check.numeric(names(in_),only.integer = T)) && all(sapply(in_,function(d) is_double(d))))
                           
-                          stopifnot(class(arg2)=="list" && !is.null(names(arg2)) && all(check.numeric(names(arg2),only.integer = T)) && all(sapply(arg2,function(d) typeof(d)=="integer")))
+                          stopifnot(is_list(arg2) && !is.null(names(arg2)) && all(check.numeric(names(arg2),only.integer = T)) && all(sapply(arg2,function(d) is_integer(d))))
                           
                           
                           in_1 <- in_
@@ -433,38 +585,44 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                           
                           if(length(in_1)==1){
                             py$key <- list(as.integer(names(in_1)))
-                            py$val <- list(unlist(in_1,use.names = F))
+                            py$val <- unname(in_1)
                           } else{
                             py$key <- as.integer(names(in_1))
-                            py$val <- unlist(in_1,use.names = F)
+                            py$val <- unname(in_1)
                           }
                           
                           py_run_string("in_ = dict(zip(key,val))")
                           
                           if(length(arg2_1)==1){
                             py$key <- list(as.integer(names(arg2_1)))
-                            py$val <- list(unlist(arg2_1,use.names = F))
+                            py$val <- unname(arg2_1)
                           } else{
                             py$key <- as.integer(names(arg2_1))
-                            py$val <- unlist(arg2_1,use.names = F)
+                            py$val <- unname(arg2_1)
                           }
                           
                           py_run_string("arg2 = dict(zip(key,val))")
                           
                           py_call(private$py_obj$process21,py_eval("in_",convert = F),py_eval("arg2",convert = F))
                           
-                          eval.parent(substitute(in_<-py_eval("in_")))
-                          eval.parent(substitute(arg2<-py_eval("arg2")))
-                          
+                          ans1 <- py_eval("in_")
+                          ans2 <- py_eval("arg2")
                           py_run_string("del key;del val;del in_;del arg2")
-                          
                           py_gc$collect()
                           
-                          invisible()
+                          tryCatch({
+                            eval.parent(substitute(in_<-ans1))
+                            eval.parent(substitute(arg2<-ans2))
+                            invisible(NULL)
+                          }, error = function(c){invisible(NULL)} )
                           
+                        
                         },
 
-                        # void  process211(libcpp_map[int, float] & in_, libcpp_map[libcpp_string, libcpp_vector[int] ] & arg2)
+                        #' void  process211(libcpp_map[int, float] & in_, libcpp_map[libcpp_string, libcpp_vector[int] ] & arg2)
+                        #' 
+                        #' in_ : named list of double type and names as integer type.
+                        #' arg2 : named list of integer vector and names as character type.
                         process211 = function(in_,arg2){
                           
                           if(!length(unique(names(in_))) == length(names(in_))) {
@@ -475,16 +633,16 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                             stop("List arg2 contains multiple elements with the same name")
                           }
                           
-                          stopifnot(class(in_)=="list" && !is.null(names(in_)) && all(check.numeric(names(in_),only.integer = T)) && all(sapply(in_,function(d) typeof(d)=="double")))
+                          stopifnot(is_list(in_) && !is.null(names(in_)) && all(check.numeric(names(in_),only.integer = T)) && all(sapply(in_,function(d) is_double(d))))
                           
-                          stopifnot(class(arg2)=="list" && !is.null(names(arg2)) && all(sapply(arg2,function(x) is.integer(x))))
+                          stopifnot(is_list(arg2) && !is.null(names(arg2)) && all(sapply(arg2,function(x) is_integer(x))))
                           
                           in_1 <- in_
                           arg2_1 <- arg2
                           
-                          for (i in sequence(length(arg2_1))) {
-                            if(length(arg2_1[[i]])==1) arg2_1[[i]] <- list(arg2_1[[i]])
-                          }
+                          #for (i in sequence(length(arg2_1))) {
+                          #  if(length(arg2_1[[i]])==1) arg2_1[[i]] <- list(arg2_1[[i]])
+                          #}
                           
                           if(length(in_1)==1){
                             py$key <- list(as.integer(names(in_1)))
@@ -506,22 +664,27 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                           
                           py_run_string("key=[i.encode('utf-8') for i in key];arg2 = dict(zip(key,val))")
                           
-                          py_call(private$py_obj$process211,py_eval("in_",convert = F),py_eval("arg2",convert = F))
+                          py_call(private$py_obj$process211,in_ = py_eval("in_",convert = F),arg2 = py_eval("arg2",convert = F))
                           
                           py_run_string("arg2 = dict(zip([i.decode('utf-8') for i in arg2.keys()],arg2.values()))")
                           
-                          eval.parent(substitute(in_<-py_eval("in_")))
-                          eval.parent(substitute(arg2<-py_eval("arg2")))
+                          ans1 <- py_eval("in_")
+                          ans2 <- py_eval("arg2")
+                          #py_run_string("del key;del val;del in_;del arg2")
+                          #py_gc$collect()
                           
-                          py_run_string("del key;del val;del in_;del arg2")
-                          
-                          py_gc$collect()
-                          
-                          invisible()
+                          #tryCatch({
+                          #  eval.parent(substitute(in_<-ans1))
+                          #  eval.parent(substitute(arg2<-ans2))
+                          #  invisible(NULL)
+                          #}, error = function(c){invisible(NULL)} )
                           
                         },
                         
-                        # void  process212(libcpp_map[int, float] & in_, libcpp_map[libcpp_string, libcpp_vector[ libcpp_vector[int] ] ] & arg2)
+                        #' void  process212(libcpp_map[int, float] & in_, libcpp_map[libcpp_string, libcpp_vector[ libcpp_vector[int] ] ] & arg2)
+                        #' 
+                        #' in_ : named list of double type and names as integer type.
+                        #' arg2 : named list of (list of integer vectors) and name as character type.
                         process212 = function(in_,arg2){
                           
                           if(!length(unique(names(in_))) == length(names(in_))) {
@@ -532,17 +695,17 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                             stop("List arg2 contains multiple elements with the same name")
                           }
                           
-                          stopifnot(class(in_)=="list" && !is.null(names(in_)) && all(check.numeric(names(in_),only.integer = T)) && all(sapply(in_,function(d) typeof(d)=="double")))
+                          stopifnot(is_list(in_) && !is.null(names(in_)) && all(check.numeric(names(in_),only.integer = T)) && all(sapply(in_,function(d) is_double(d))))
                           
-                          stopifnot(class(arg2)=="list" && !is.null(names(arg2)) && all(sapply(arg2,function(x) class(x)=="list")))
+                          stopifnot(is_list(arg2) && !is.null(names(arg2)) && all(sapply(arg2,function(x) is_list(x))))
                           
                           # check for list of vectors of integer type. 
                           for (a in arg2) {
-                            for(a_in in a){
-                              if(!is.integer(a_in)){
+                            for(a_i in a){
+                              if(!is.integer(a_i)){
                                 stop("arg2 wrong type")
                               }  
-                           }
+                          }
                         }
                           
                           in_1 <- in_
@@ -573,18 +736,24 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                           
                           py_run_string("arg2 = dict(zip([i.decode('utf-8') for i in arg2.keys()],arg2.values()))")
                           
-                          eval.parent(substitute(in_<-py_eval("in_")))
-                          eval.parent(substitute(arg2<-py_eval("arg2")))
-                          
+                          ans1 <- py_eval("in_")
+                          ans2 <- py_eval("arg2")
                           py_run_string("del key;del val;del in_;del arg2")
-                          
                           py_gc$collect()
                           
-                          invisible()
+                          tryCatch({
+                            eval.parent(substitute(in_<-ans1))
+                            eval.parent(substitute(arg2<-ans2))
+                            invisible(NULL)
+                          }, error = function(c){invisible(NULL)} )
+                          
                         },
                         
                         
-                        # void  process213(libcpp_map[int, float] & in_, libcpp_map[libcpp_string, libcpp_vector[ libcpp_vector[Int] ] ] & arg2)
+                        #' void  process213(libcpp_map[int, float] & in_, libcpp_map[libcpp_string, libcpp_vector[ libcpp_vector[Int] ] ] & arg2)
+                        #' 
+                        #' in_ : named list of double type and names as integer type.
+                        #' arg2 : named list of (list of Int objects) and name as character type.
                         process213 = function(in_,arg2){
                           
                           if(!length(unique(names(in_))) == length(names(in_))) {
@@ -653,17 +822,21 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                             
                           }
                           
-                          eval.parent(substitute(in_<-py_eval("in_")))
-                          eval.parent(substitute(arg2<-py_eval("arg2")))
-                          
+                          ans1 <- py_eval("in_")
+                          ans2 <- py_eval("arg2")
                           py_run_string("del key;del val;del in_;del arg2")
-                          
                           py_gc$collect()
                           
-                          invisible()
+                          tryCatch({
+                            eval.parent(substitute(in_<-ans1))
+                            eval.parent(substitute(arg2<-ans2))
+                          }, error = function(c){} )
                         },
                         
-                        # void  process214(libcpp_map[int, float] & in_, libcpp_map[libcpp_string, libcpp_vector[ libcpp_pair[int, int] ] ] & arg2)
+                        #' void  process214(libcpp_map[int, float] & in_, libcpp_map[libcpp_string, libcpp_vector[ libcpp_pair[int, int] ] ] & arg2)
+                        #' 
+                        #' in_ : named list of double type and names as integer type.
+                        #' arg2 : named list of (list of integer vector of length 2) and names as character type.
                         process214 = function(in_,arg2){
                           
                           if(!length(unique(names(in_))) == length(names(in_))) {
@@ -686,7 +859,7 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                             
                             for(b in sequence(length(arg2_1[[a]])))
                             {
-                              if(!( length(arg2_1[[a]][[b]])==2 && all(sapply(arg2_1[[a]][[b]],function(x) class(x)=="integer")) ))
+                              if(!( length(arg2_1[[a]][[b]])==2 && all(sapply(arg2_1[[a]][[b]],function(x) is_integer(x))) ))
                               {
                                 stop("arg2 wrong type")
                               }
@@ -719,20 +892,24 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                           
                           py_run_string("arg2 = dict(zip([i.decode('utf-8') for i in arg2.keys()],arg2.values()))")
                           
-                          eval.parent(substitute(in_<-py_eval("in_")))
-                          eval.parent(substitute(arg2<-py_eval("arg2")))
-                          
+                          ans1 <- py_eval("in_")
+                          ans2 <- py_eval("arg2")
                           py_run_string("del key;del val;del in_;del arg2")
-                          
                           py_gc$collect()
                           
-                          invisible()
+                          tryCatch({
+                            eval.parent(substitute(in_<-ans1))
+                            eval.parent(substitute(arg2<-ans2))
+                            invisible(NULL)
+                          }, error = function(c){invisible(NULL)} )
                         },
                         
-                        # void  process22(libcpp_set[int] &, libcpp_set[float] &)
+                        #' void  process22(libcpp_set[int] &, libcpp_set[float] &)
+                        #' 
+                        #' takes two lists one of integer type and other of double type.
                         process22 = function(in_0,in_1){
-                          stopifnot(inherits(in_0,"list") && all(sapply(in_0, function(x) is_integer(x))) && !(TRUE %in% duplicated(in_0)))
-                          stopifnot(inherits(in_1,"list") && all(sapply(in_1, function(x) is_double(x))) && !(TRUE %in% duplicated(in_1)))
+                          stopifnot(is_list(in_0) && all(sapply(in_0, function(x) is_integer(x))) && !(TRUE %in% duplicated(in_0)))
+                          stopifnot(is_list(in_1) && all(sapply(in_1, function(x) is_double(x))) && !(TRUE %in% duplicated(in_1)))
                           
                           py$in_0 <- in_0
                           py$in_1 <- in_1
@@ -741,48 +918,65 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                           
                           py_call(private$py_obj$process22,py_eval("in_0",convert = F),py_eval("in_1",convert = F))
                           
-                          eval.parent(substitute(in_0<-as.list(py_eval("list(in_0)"))))
-                          eval.parent(substitute(in_1<-as.list(py_eval("list(in_1)"))))
-                          
+                          ans1 <- py_eval("list(in_0)")
+                          ans2 <- py_eval("list(in_1)")
                           py_run_string("del in_0;del in_1")
-                          
                           py_gc$collect()
                           
-                          invisible()
+                          tryCatch({
+                            eval.parent(substitute(in_0<-as.list(ans1)))
+                            eval.parent(substitute(in_1<-as.list(ans2)))
+                            invisible(NULL)
+                          }, error = function(c){invisible(NULL)} )
+                          
                         },
                         
                         
-                        # void  process23(libcpp_vector[int] &, libcpp_vector[float] &)
+                        #' void  process23(libcpp_vector[int] &, libcpp_vector[float] &)
+                        #' 
+                        #' takes two lists of type integer and double.
                         process23 = function(in_0,in_1){
                           
-                          stopifnot(inherits(in_0,"list") && all(sapply(in_0, function(x) is_integer(x))) )
-                          stopifnot(inherits(in_1,"list") && all(sapply(in_1, function(x) is_double(x))) )
+                          stopifnot(is_list(in_0) && all(sapply(in_0, function(x) is_integer(x))) )
+                          stopifnot(is_list(in_1) && all(sapply(in_1, function(x) is_double(x))) )
                           
                           a1 <- r_to_py(in_0)
                           a2 <- r_to_py(in_1)
                           private$py_obj$process23(a1,a2)
                           
-                          eval.parent(substitute(in_0<-as.list(py_to_r(a1))))
-                          eval.parent(substitute(in_1<-as.list(py_to_r(a2))))
+                          tryCatch({
+                            eval.parent(substitute(in_0<-as.list(py_to_r(a1))))
+                            eval.parent(substitute(in_1<-as.list(py_to_r(a2))))
+                            invisible(NULL)
+                          }, error = function(c){invisible(NULL)} )
                           
                         },
                         
                         
-                        # void  process24(libcpp_pair[int, float] & in_, libcpp_pair[int,int] & arg2)
+                        #' void  process24(libcpp_pair[int, float] & in_, libcpp_pair[int,int] & arg2)
+                        #' 
+                        #' in_ : a list of integer and double type.
+                        #' arg2 : a list of integer type.
                         process24 = function(in_,arg2){
                           
-                          stopifnot(inherits(in_,"list") && length(in_)==2 && is_integer(in_[[1]]) && is_double(in_[[2]]))
-                          stopifnot(inherits(arg2,"list") && length(arg2)==2 && is_integer(arg2[[1]]) && is_integer(arg2[[2]]))
+                          stopifnot(is_list(in_) && length(in_)==2 && is_scalar_integer(in_[[1]]) && is_scalar_double(in_[[2]]))
+                          stopifnot(is_list(arg2) && length(arg2)==2 && is_scalar_integer(arg2[[1]]) && is_scalar_integer(arg2[[2]]))
                           
                           a1 <- r_to_py(in_)
                           a2 <- r_to_py(arg2)
                           private$py_obj$process24(a1,a2)
                           
-                          eval.parent(substitute(in_<-py_to_r(a1)))
-                          eval.parent(substitute(arg2<-as.list(py_to_r(a2))))
+                          tryCatch({
+                            eval.parent(substitute(in_<-py_to_r(a1)))
+                            eval.parent(substitute(arg2<-as.list(py_to_r(a2))))
+                            invisible(NULL)
+                          }, error = function(c){invisible(NULL)} )
+                          
                         },
                         
-                        # int process25(libcpp_vector[Int] in_)
+                        #' int process25(libcpp_vector[Int] in_)
+                        #' 
+                        #' in_ : a list of Int objects.
                         process25 = function(in_){
                           stopifnot(inherits(in_,"list"))
                           
@@ -798,7 +992,9 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                           return(private$py_obj$process25(in_))
                         },
                         
-                        # int process26(libcpp_vector[libcpp_vector[Int]] in_)
+                        #' int process26(libcpp_vector[libcpp_vector[Int]] in_)
+                        #' 
+                        #' in_ : a list of (list of Int objects)
                         process26 = function(in_){
                           stopifnot(class(in_) == "list")
                           
@@ -815,7 +1011,9 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                           return(private$py_obj$process26(in_))
                         },
                         
-                        # int process27(libcpp_vector[libcpp_vector[libcpp_vector[Int]]] in_)
+                        #' int process27(libcpp_vector[libcpp_vector[libcpp_vector[Int]]] in_)
+                        #' 
+                        #' in_ : a list of (list of (list of Int objects))
                         process27 = function(in_){
                           stopifnot(class(in_) == "list")
                           
@@ -834,7 +1032,8 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                           
                         },
                         
-                        # int process28(libcpp_vector[libcpp_vector[libcpp_vector[libcpp_vector[Int]]]] in_)
+                        #' int process28(libcpp_vector[libcpp_vector[libcpp_vector[libcpp_vector[Int]]]] in_)
+                        #' 
                         process28 = function(in_){
                           stopifnot(class(in_) == "list")
                           
@@ -854,7 +1053,8 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                           return(private$py_obj$process28(in_))
                         },
                         
-                        # void  process29(libcpp_vector[libcpp_vector[Int]] & in_)
+                        #' void  process29(libcpp_vector[libcpp_vector[Int]] & in_)
+                        #' 
                         process29 = function(in_){
                           stopifnot(class(in_) == "list")
                           in_1 <- in_
@@ -876,10 +1076,14 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                             }
                           }
                           
-                          eval.parent(substitute(in_<-in_1))
+                          tryCatch({
+                            eval.parent(substitute(in_<-in_1))
+                            invisible(NULL)
+                          }, error = function(c){invisible(NULL)} )
                         },
                         
-                        # void  process30(libcpp_vector[libcpp_vector[libcpp_vector[libcpp_vector[Int]]]] & in_)
+                        #' void  process30(libcpp_vector[libcpp_vector[libcpp_vector[libcpp_vector[Int]]]] & in_)
+                        #' 
                         process30 = function(in_){
                           stopifnot(class(in_) == "list")
                           in_1 <- in_
@@ -913,50 +1117,53 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                             }
                           }
                           
-                          eval.parent(substitute(in_<-in_1))
+                          tryCatch({
+                            eval.parent(substitute(in_<-in_1))
+                            invisible(NULL)
+                          }, error = function(c){invisible(NULL)} )
                         },
                         
-                        # int   process31(libcpp_vector[int] in_)
+                        #' int process31(libcpp_vector[int] in_)
                         process31 = function(in_){
                           
-                          stopifnot(inherits(in_,"list") && all(sapply(in_, function(x) is_integer(x))) )
+                          stopifnot(is_list(in_) && all(sapply(in_, function(x) is_integer(x))) )
                           return(private$py_obj$process31(in_))
                         },
                         
-                        # int process32(libcpp_vector[libcpp_vector[int]] in_)
+                        #' int process32(libcpp_vector[libcpp_vector[int]] in_)
                         process32 = function(in_){
                           stopifnot(inherits(in_,"list"))
-                          for (i in in_) {
-                            stopifnot(class(i)=="list" && all(sapply(i,function(x) is_integer(x))))
-                          }
+                          
+                          stopifnot(all(sapply(in_, function(x) is_integer(x))))
+                          
                           return(private$py_obj$process32(in_))
                         },
                         
-                        # int   process33(shared_ptr[Int] in_)
+                        #' int   process33(shared_ptr[Int] in_)
                         process33 = function(in_){
                           stopifnot(all(class(in_)==c("Int","R6")))
                           return(private$py_obj$process33(in_$get_py_object()))
                         },
                         
-                        # shared_ptr[Int] process34(shared_ptr[Int] in_)
+                        #' shared_ptr[Int] process34(shared_ptr[Int] in_)
                         process34 = function(in_){
                           stopifnot(all(class(in_)==c("Int","R6")))
                           return(Int$new(private$py_obj$process34(in_$get_py_object())$i_))
                         },
                         
-                        # shared_ptr[const Int] process35(shared_ptr[Int] in_)
+                        #' shared_ptr[const Int] process35(shared_ptr[Int] in_)
                         process35 = function(in_){
                           stopifnot(all(class(in_)==c("Int","R6")))
                           return(Int$new(private$py_obj$process35(in_$get_py_object())$i_))
                         },
                         
-                        # int   process36(Int* in_)
+                        #' int  process36(Int* in_)
                         process36 = function(in_){
                           stopifnot(all(class(in_)==c("Int","R6")))
                           return(private$py_obj$process36(in_$get_py_object()))
                         },
                         
-                        # Int*   process37(Int* in_)
+                        #' Int*   process37(Int* in_)
                         process37 = function(in_){
                           stopifnot(all(class(in_)==c("Int","R6")))
                           if(in_$i_ == 18){
@@ -965,19 +1172,19 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                           return(Int$new(private$py_obj$process37(in_$get_py_object())$i_))
                         },
                         
-                        # libcpp_vector[libcpp_vector[UInt]] process38(int)
+                        #' libcpp_vector[libcpp_vector[UInt]] process38(int)
                         process38 = function(in_0){
                           stopifnot(is_scalar_integer(in_0))
                           return(private$py_obj$process38(in_0))
                         },
                         
-                        # const Int* process39(Int* in_)
+                        #' const Int* process39(Int* in_)
                         process39 = function(in_){
                           stopifnot(all(class(in_)==c("Int","R6")))
                           return(Int$new(private$py_obj$process39(in_$get_py_object())$i_))
                         },
 
-                        # int process40(AbstractBaseClass* in_)
+                        #' int process40(AbstractBaseClass* in_)
                         process40 = function(in_){
                           stopifnot( all(class(in_)==c("ABS_Impl1","R6")) || all(class(in_)==c("ABS_Impl2","R6")) )
                           
@@ -992,6 +1199,10 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                           return(private$py_obj)
                         },
                         
+                        set_py_object = function(ob){
+                          private$py_obj <- ob
+                          return(self)
+                        }
                         
                     )
                     
