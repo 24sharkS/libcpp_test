@@ -181,12 +181,26 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                         #' 
                         #' takes list of integer and LibCppTest object
                         process4 = function(pair){
+<<<<<<< HEAD
+                          stopifnot(length(pair)==2 && is_scalar_integer(pair[[1]]) && all(class(pair[[2]])==c("LibCppTest","R6")))
+                          
+                          pair1 <- pair
+                          pair1[[2]] <- pair1[[2]]$get_py_object()
+                          pair1 <- r_to_py(pair1)
+||||||| merged common ancestors
+                          pair[[2]] <- pair[[2]]$get_py_object()
+=======
                           stopifnot(length(pair)==2 && is_scalar_integer(pair[[1]]) && all(class(pair[[2]])==c("LibCppTest","R6")))
                           
                           pair1 <- pair
                           pair1[[2]] <- pair1[[2]]$get_py_object()
                           pair1 <- r_to_py(pair1)
                           
+                          ans <- private$py_obj$process4(pair1)
+                          ans[[2]] <- LibCppTest$new(ans[[2]]$gett())
+>>>>>>> 9a74d870681a97752d65b344b15df1fa50b250f6
+                          
+<<<<<<< HEAD
                           ans <- private$py_obj$process4(pair1)
                           ans[[2]] <- LibCppTest$new(ans[[2]]$gett())
                           
@@ -197,6 +211,17 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                             eval.parent(substitute(pair<-pair1))
                             return(ans)
                           }, error = function(c) return(ans))
+||||||| merged common ancestors
+                          pair2 <- private$py_obj$process4(pair)
+=======
+                          pair1 <- py_to_r(pair1)
+                          pair1[[2]] <- LibCppTest$new(pair1[[2]]$gett())
+                          
+                          tryCatch({
+                            eval.parent(substitute(pair<-pair1))
+                            return(ans)
+                          }, error = function(c) return(ans))
+>>>>>>> 9a74d870681a97752d65b344b15df1fa50b250f6
                           
                         },
                         
@@ -206,12 +231,29 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                         #' 
                         #' takes a list of LibCppTest objects.
                         process5 = function(pair){
+<<<<<<< HEAD
+                          stopifnot(length(pair)==2 && all(sapply(pair, function(f) all(class(f)==c("LibCppTest","R6")))))
+                          pair1 <- pair
+                          
+                          pair1[[1]] <- pair1[[1]]$get_py_object()
+                          pair1[[2]] <- pair1[[2]]$get_py_object()
+||||||| merged common ancestors
+                          pair[[1]] <- pair[[1]]$get_py_object()
+                          pair[[2]] <- pair[[2]]$get_py_object()
+=======
                           stopifnot(length(pair)==2 && all(sapply(pair, function(f) all(class(f)==c("LibCppTest","R6")))))
                           pair1 <- pair
                           
                           pair1[[1]] <- pair1[[1]]$get_py_object()
                           pair1[[2]] <- pair1[[2]]$get_py_object()
                           
+                          pair1 <- r_to_py(pair1)
+                          ans <- private$py_obj$process5(pair1)
+                          ans[[1]] <- LibCppTest$new(ans[[1]]$gett())
+                          ans[[2]] <- LibCppTest$new(ans[[2]]$gett())
+>>>>>>> 9a74d870681a97752d65b344b15df1fa50b250f6
+                          
+<<<<<<< HEAD
                           pair1 <- r_to_py(pair1)
                           ans <- private$py_obj$process5(pair1)
                           ans[[1]] <- LibCppTest$new(ans[[1]]$gett())
@@ -225,6 +267,18 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                             eval.parent(substitute(pair<-pair1))
                             return(ans)
                           }, error = function(c) return(ans))
+||||||| merged common ancestors
+                          pair2 <- private$py_obj$process5(pair)
+=======
+                          pair1 <- py_to_r(pair1)
+                          pair1[[1]] <- LibCppTest$new(pair1[[1]]$gett())
+                          pair1[[2]] <- LibCppTest$new(pair1[[2]]$gett())
+                          
+                          tryCatch({
+                            eval.parent(substitute(pair<-pair1))
+                            return(ans)
+                          }, error = function(c) return(ans))
+>>>>>>> 9a74d870681a97752d65b344b15df1fa50b250f6
                           
                         },
                         
@@ -326,17 +380,55 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                             stop("argument values should be unique")
                           }
                           
+<<<<<<< HEAD
+                          # converting r to python object.
+                          setl <- lapply(setl, function(x) x$get_py_object())
+||||||| merged common ancestors
+                          py$o1 <- input
+=======
                           # converting r to python object.
                           setl <- lapply(setl, function(x) x$get_py_object())
                           
                           py$o1 <- setl
+>>>>>>> 9a74d870681a97752d65b344b15df1fa50b250f6
                           
+                          py$o1 <- setl
+                          
+<<<<<<< HEAD
                           py_run_string("o1 = set(o1)")
-                          
+||||||| merged common ancestors
+                          py$o1 <- py_call(private$py_obj$process11,py$o1)
+=======
                           py$o2 <- py_call(private$py_obj$process11,py$o1)
+>>>>>>> 9a74d870681a97752d65b344b15df1fa50b250f6
                           
+<<<<<<< HEAD
+                          py$o2 <- py_call(private$py_obj$process11,py$o1)
+||||||| merged common ancestors
+                          ans <- py_eval("list(o1)")
+=======
                           ans <- py_eval("list(o2)")
+>>>>>>> 9a74d870681a97752d65b344b15df1fa50b250f6
                           
+<<<<<<< HEAD
+                          ans <- py_eval("list(o2)")
+||||||| merged common ancestors
+                          py_run_string("del o1")
+                          py_gc$collect()
+=======
+                          tryCatch({
+                            eval.parent(substitute(setl<-py_eval("list(o1)")))
+                            py_run_string("del o1;del o2")
+                            py_gc$collect()
+                            return(lapply(ans,function(x) LibCppTest$new(x$gett())))
+                          }, error = function(c){
+                            py_run_string("del o1;del o2")
+                            py_gc$collect()
+                            return(lapply(ans,function(x) LibCppTest$new(x$gett())))
+                          } )
+>>>>>>> 9a74d870681a97752d65b344b15df1fa50b250f6
+                          
+<<<<<<< HEAD
                           tryCatch({
                             eval.parent(substitute(setl<-py_eval("list(o1)")))
                             py_run_string("del o1;del o2")
@@ -348,6 +440,12 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                             return(lapply(ans,function(x) LibCppTest$new(x$gett())))
                           } )
                           
+||||||| merged common ancestors
+                          ans <- lapply(ans,function(x) LibCppTest$new(x$gett()))
+                          
+                          return(ans)
+=======
+>>>>>>> 9a74d870681a97752d65b344b15df1fa50b250f6
                         },
                         
                         #' libcpp_map[int, float] process12(int i, float f)
@@ -452,14 +550,31 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                         #' takes a named list of LibCppTest object and names as integer type.
                         process18 = function(dict){
                           
+<<<<<<< HEAD
                           stopifnot(is_list(dict) && !is.null(names(dict)) && all(check.numeric(names(dict),only.integer = T)) && all(sapply(dict, function(d) all(class(d)==c("LibCppTest","R6")))))
                           
                           # check that list name should be unique.
                           if(!length(unique(names(dict))) == length(names(dict))) {
                             stop("List names should be unique")
                           }
+||||||| merged common ancestors
+                          stopifnot(class(dict)=="list" && !is.null(names(dict)) && all(check.numeric(names(dict),only.integer = T)) && all(sapply(dict, function(d) all(class(d)==c("LibCppTest","R6")))))
+=======
+                          stopifnot(is_list(dict) && !is.null(names(dict)) && all(check.numeric(names(dict),only.integer = T)) && all(sapply(dict, function(d) all(class(d)==c("LibCppTest","R6")))))
+>>>>>>> 9a74d870681a97752d65b344b15df1fa50b250f6
+                          
+<<<<<<< HEAD
+                          dict <- lapply(dict, function(x) x$get_py_object())
+||||||| merged common ancestors
+                          dict <- lapply(dict, function(x) dict$get_py_object(x))
+=======
+                          # check that list name should be unique.
+                          if(!length(unique(names(dict))) == length(names(dict))) {
+                            stop("List names should be unique")
+                          }
                           
                           dict <- lapply(dict, function(x) x$get_py_object())
+>>>>>>> 9a74d870681a97752d65b344b15df1fa50b250f6
                           
                           if(length(dict)==1){
                             py$key <- list(as.integer(names(dict)))
@@ -670,6 +785,7 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                           
                           py_run_string("arg2 = dict(zip([i.decode('utf-8') for i in arg2.keys()],arg2.values()))")
                           
+<<<<<<< HEAD
                           ans1 <- py_eval("in_")
                           ans2 <- py_eval("arg2")
                           #py_run_string("del key;del val;del in_;del arg2")
@@ -680,6 +796,27 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
                           #  eval.parent(substitute(arg2<-ans2))
                           #  invisible(NULL)
                           #}, error = function(c){invisible(NULL)} )
+||||||| merged common ancestors
+                          eval.parent(substitute(in_<-py_eval("in_")))
+                          eval.parent(substitute(arg2<-py_eval("arg2")))
+                          
+                          py_run_string("del key;del val;del in_;del arg2")
+                          
+                          py_gc$collect()
+                          
+                          invisible()
+=======
+                          ans1 <- py_eval("in_")
+                          ans2 <- py_eval("arg2")
+                          #py_run_string("del key;del val;del in_;del arg2")
+                          #py_gc$collect()
+                          
+                          #tryCatch({
+                          #  eval.parent(substitute(in_<-ans1))
+                          #  eval.parent(substitute(arg2<-ans2))
+                          #  invisible(NULL)
+                          #}, error = function(c){invisible(NULL)} )
+>>>>>>> 9a74d870681a97752d65b344b15df1fa50b250f6
                           
                         },
                         
