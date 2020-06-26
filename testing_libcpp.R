@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 abs1 <- ABS_Impl1$new(5L)
 abs2 <- ABS_Impl2$new(9L)
 
